@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ubuntu-deployment
+spec:
+  selector:
+    matchLabels:
+      app: ubuntu
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ubuntu
+    spec:
+      containers:
+      - name: ubuntu-container
+        image: ubuntu:20.04
+        args: [bash, -c, 'for ((i = 0; ; i++)); do echo "$i: $(date)"; sleep 100; done']
+      initContainers:
+      - name: init-network-client
+        image: sdnvortex/network-controller:v0.4.9
+        command: ["/go/bin/client"]
+        args: ["-s=unix:///tmp/vortex.sock", "-b=br0", "-n=eth1", "-i=192.168.2.160/23"]
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_UUID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+        volumeMounts:
+        - mountPath: /tmp/
+          name: grpc-sock
+      volumes:
+      - name: grpc-sock
+        hostPath:
+          path: /tmp/vortex/
